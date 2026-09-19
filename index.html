@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Secure Club — Cybersecurity Awareness Web Game</title>
+  <meta name="description" content="An interactive 2D cybersecurity awareness web game teaching Passwords, Authentication, Authorization, Sessions, Account Takeover, and Multi-Factor Authentication.">
+  <link rel="stylesheet" href="src/styles/main.css">
+  <style>
+    /* Error display banner if any script fails */
+    #errBanner {
+      display: none;
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #dc2626;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      z-index: 99999;
+      font-family: monospace;
+      font-size: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+  </style>
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('Captured window error:', e);
+      var banner = document.getElementById('errBanner');
+      if (banner) {
+        banner.style.display = 'block';
+        banner.innerText = 'Script error: ' + (e.message || e);
+      }
+    });
+  </script>
+</head>
+<body>
+  <div id="errBanner"></div>
+
+  <!-- On-page custom cursor (see initCustomCursor in app.js) - a real DOM
+       element so it's captured by ordinary screenshots, unlike a native
+       CSS cursor which the OS composites separately. -->
+  <div id="customCursor" class="custom-cursor"></div>
+
+  <!-- Fullscreen Game Viewport -->
+  <div class="game-viewport">
+    <canvas id="clubCanvas" width="1200" height="750"></canvas>
+
+    <!-- Floating Gear Button (Top-Right) -->
+    <button id="btnFloatingMenu" class="floating-menu-btn" title="Settings / System Menu (Esc)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+
+    <!-- Collapsed Mini Pill (Shown when HUD is minimized) -->
+    <button id="btnExpandHud" class="hud-expand-pill" style="display: none;" title="Expand Character HUD">
+      <span id="pillAvatar">YASH</span> <span id="pillName">MEMBER</span> <span style="font-size: 8px;">▶</span>
+    </button>
+
+    <!-- Character ID Card HUD (Left Side) -->
+    <div id="characterHud" class="character-hud">
+      <!-- Collapse toggle button -->
+      <button id="btnToggleHud" class="hud-toggle-btn" title="Collapse / Expand HUD">◀</button>
+      
+      <!-- Character Switcher Tabs -->
+      <div class="hud-switcher" style="display: flex; gap: 4px; margin-bottom: 10px; margin-top: 4px;">
+        <button class="btn btn-sm btn-char active" data-char="yash" style="flex: 1; padding: 6px 2px; font-size: 11px; justify-content: center;">Yash</button>
+        <button class="btn btn-sm btn-char" data-char="vipul" style="flex: 1; padding: 6px 2px; font-size: 11px; justify-content: center;">Vipul</button>
+        <button class="btn btn-sm btn-char" data-char="anshuman" style="flex: 1; padding: 6px 2px; font-size: 11px; justify-content: center;">Anshuman</button>
+      </div>
+
+      <div class="hud-header">
+        <div id="hudPhoto" class="hud-photo">Y</div>
+        <div class="hud-details">
+          <h4 id="hudName">YASH</h4>
+          <p id="hudRole">Regular Club Member</p>
+        </div>
+      </div>
+      <div class="hud-row">
+        <span>Status:</span>
+        <span id="hudBadge" class="hud-badge regular">MEMBER</span>
+      </div>
+      <div class="hud-row">
+        <span>Cash:</span>
+        <span id="hudCash" style="color: var(--gold-text); font-weight: 600;">₹15,000</span>
+      </div>
+      <div class="hud-row">
+        <span>Password:</span>
+        <span id="hudPassword" style="color: var(--success-teal); font-weight: 600;">123456</span>
+      </div>
+      <div class="hud-row">
+        <span>Strength:</span>
+        <span id="hudStrength" class="badge-strength strong">STRONG</span>
+      </div>
+      <div class="hud-row">
+        <span>VIP Access:</span>
+        <span id="hudVip" style="color: var(--danger-text);">DENIED</span>
+      </div>
+      <div class="hud-row">
+        <span>Security ID:</span>
+        <span id="hudClubId" style="color: var(--muted-text-soft); font-family: monospace;">SC-10482</span>
+      </div>
+      <div class="hud-row">
+        <span>MFA Factor:</span>
+        <span id="hudMfa" style="color: var(--muted-text);">Disabled</span>
+      </div>
+
+      <!-- Anshuman-Only Quick Actions (hidden unless controlling Anshuman) -->
+      <div id="anshumanHudActions" style="display: none; flex-direction: column; gap: 6px; margin-top: 10px; border-top: 1px solid var(--bg-panel); padding-top: 10px;">
+        <button id="btnAnshumanToggleDisguise" class="btn btn-sm btn-primary" style="justify-content: center; font-size: 11px;">
+          Disguise as Bouncer
+        </button>
+        <button id="btnAnshumanRecordDoor" class="btn btn-sm" style="justify-content: center; font-size: 11px; background: var(--bg-panel);">
+          Record near Club Door
+        </button>
+        <button id="btnAnshumanHackAccounts" class="btn btn-sm btn-danger" style="justify-content: center; font-size: 11px;">
+          Hack Online Accounts (Home PC)
+        </button>
+      </div>
+
+      <!-- Quick Camera Center Button -->
+      <div style="margin-top: 10px; display: flex; gap: 6px;">
+        <button id="btnCenterCam" class="btn btn-sm" style="flex: 1; justify-content: center; font-size: 11px; background: var(--bg-panel);">
+          Center Camera
+        </button>
+      </div>
+    </div>
+
+    <!-- Floating Action & Dialogue Bar (Bottom Center) -->
+    <div class="hud-action-bar">
+      <div id="speakerName" class="action-speaker">BOUNCER</div>
+      <div id="dialogueText" class="action-text">Welcome to The Secure Club! State your credentials.</div>
+      <div id="dialogueActions" class="action-buttons">
+        <!-- Buttons populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Modal Dialog & Educational Cards Overlay -->
+    <div id="modalOverlay" class="modal-overlay" role="dialog" aria-modal="true">
+      <div id="modalContainer"></div>
+    </div>
+
+    <!-- =========================================================
+         POKÉMON STYLE 2-SIDED BATTLE ENCOUNTER SCREEN
+         ========================================================= -->
+    <div id="battleOverlay" class="battle-overlay">
+      <div class="battle-arena-canvas-wrap">
+        <canvas id="battleCanvas"></canvas>
+
+        <!-- Opponent Status Plate (Top Left) -->
+        <div class="battle-plate opponent-plate">
+          <div class="battle-plate-header">
+            <span id="battleOpponentName" class="battle-plate-name">BOUNCER</span>
+            <span id="battleOpponentRole" class="battle-plate-role">AuthN System</span>
+          </div>
+          <div class="battle-plate-stat">
+            <span>SEC:</span>
+            <div class="battle-hp-bar">
+              <div id="battleOpponentHp" class="battle-hp-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+          <span id="battleOpponentBadge" class="battle-plate-badge">GATEWAY</span>
+        </div>
+
+        <!-- Player Status Plate (Bottom Right) -->
+        <div class="battle-plate player-plate">
+          <div class="battle-plate-header">
+            <span id="battlePlayerName" class="battle-plate-name">YASH</span>
+            <span id="battlePlayerRole" class="battle-plate-role">Regular Member</span>
+          </div>
+          <div class="battle-plate-stat">
+            <span>CRED:</span>
+            <div class="battle-hp-bar">
+              <div id="battlePlayerHp" class="battle-hp-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+          <span id="battlePlayerBadge" class="battle-plate-badge">CREDENTIALS READY</span>
+        </div>
+      </div>
+
+      <!-- Bottom Battle Dialogue & Command Action Panel -->
+      <div class="battle-control-deck">
+        <div class="battle-dialogue-box">
+          <div id="battleSpeakerName" class="battle-dialogue-speaker">BOUNCER</div>
+          <div id="battleDialogueText" class="battle-dialogue-text">A wild Bouncer blocks your entrance! State your credentials.</div>
+        </div>
+        <div id="battleActions" class="battle-menu-box">
+          <!-- Command buttons populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Black Screen Fade Transition Overlay -->
+    <div id="screenFadeOverlay" class="screen-fade-overlay"></div>
+  </div>
+
+  <!-- ESC / Pause Menu Modal -->
+  <div id="escMenuOverlay" class="esc-menu-overlay">
+    <div class="esc-menu-card">
+      <h3 class="esc-menu-title">THE SECURE CLUB — SYSTEM MENU</h3>
+      
+      <!-- Open Simulation Guide -->
+      <div class="esc-menu-section" style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; border: 1px solid #384860;">
+        <label style="color: #f8d068; margin-bottom: 8px;">SIMULATION PLAYGROUND</label>
+        <p style="font-size: 12px; color: var(--muted-text-soft); line-height: 1.5; margin: 0;">
+          • Click anywhere to walk (with wall collision detection).<br>
+          • Drag the mouse to pan across Cyber Town & Club.<br>
+          • Click buildings to enter: Yash's House, Vipul's Villa (set passwords & MFA), or Anshuman's House (hacking terminal).<br>
+          • Approach the Bouncer at the front door to test authentication with any password.
+        </p>
+      </div>
+
+      <!-- Actions -->
+      <div class="esc-menu-actions" style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+        <button id="btnOpenQuiz" class="btn btn-primary" style="justify-content: center;">
+          Cybersecurity Knowledge Quiz
+        </button>
+        <button id="btnResetGame" class="btn btn-danger" style="justify-content: center;">
+          Reset Simulation & Sessions
+        </button>
+        <button id="btnCloseEscMenu" class="btn btn-gold" style="justify-content: center; font-weight: bold;">
+          ▶ Resume Free Play (Esc)
+        </button>
+      </div>
+
+      <!-- Controls Guide -->
+      <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 11px; color: var(--muted-text); text-align: center;">
+        Hold & Drag = Pan World • Click = Move / Interact • [Esc] Menu
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application Script (ES Module) -->
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

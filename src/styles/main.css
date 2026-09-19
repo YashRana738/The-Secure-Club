@@ -1,0 +1,1025 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+:root {
+  --bg-dark: #101820;
+  --bg-surface: #202838;
+  --bg-card: #283040;
+  --bg-panel: #1e293b;
+  --border-subtle: #485060;
+  --border-pixel: #d8a038;
+  
+  --color-primary: #3878c8;
+  --color-accent: #209860;
+  --color-gold: #e8a820;
+  --color-danger: #d83838;
+  --color-success: #38a850;
+  
+  --text-main: #f8f8f8;
+  --text-muted: #a0a8b8;
+  --font-retro: 'Press Start 2P', monospace;
+  --font-sans: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Card/modal palette: the dark modal system (educational cards, house
+     visits, terminal, receipts) needs lighter text-on-dark tints than the
+     saturated --color-* tokens above (those are tuned for the pixel-art
+     world's borders/fills). These were previously ad-hoc hex literals
+     copy-pasted across dozens of app.js template strings - naming them
+     here makes the palette explicit and gives every card a single source
+     of truth per semantic role instead of a dozen near-duplicate reds. */
+  --danger-text: #f87171;
+  --danger-text-strong: #ef4444;
+  --danger-text-soft: #fca5a5;
+  --danger-bg: #991b1b;
+  --danger-bg-deep: #7f1d1d;
+
+  --gold-text: #fbbf24;
+  --gold-text-soft: #fde68a;
+  --gold-accent: #f59e0b;
+
+  --success-text: #4ade80;
+  --success-text-soft: #86efac;
+  --success-accent: #22c55e;
+  --success-teal: #6ee7b7;
+  --success-emphasis: #34d399;
+  --success-strong: #10b981;
+
+  --muted-text: #94a3b8;
+  --muted-text-soft: #cbd5e1;
+  --muted-text-dim: #64748b;
+  --muted-text-dimmer: #475569;
+
+  --info-text: #38bdf8;
+  --info-text-soft: #60a5fa;
+  --info-accent: #3b82f6;
+  --info-text-pale: #93c5fd;
+  --info-border: #0369a1;
+
+  /* Retro pixel-art cursor art: a chunky arrow with a thick dark outline,
+     gold at rest and blue with a gold dot over anything clickable. This is
+     drawn by an actual on-page element (#customCursor) rather than the CSS
+     `cursor` property, so it's part of the rendered page and shows up in
+     ordinary screenshots/screen recordings the same way any other pixel on
+     the page would - a native OS cursor image never does. */
+  --cursor-img-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpolygon points='4,2 4,22 9,17 12,24 16,22 13,15 21,15' fill='%23e8a820' stroke='%23101820' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --cursor-img-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpolygon points='4,2 4,22 9,17 12,24 16,22 13,15 21,15' fill='%2338a8f0' stroke='%23101820' stroke-width='2.5' stroke-linejoin='round'/%3E%3Ccircle cx='19' cy='6' r='3' fill='%23f8d068' stroke='%23101820' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  cursor: none !important;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* On-page cursor element, positioned by JS in app.js (initCustomCursor) to
+   track the real mouse position every frame. Sits above absolutely
+   everything (modals, battle screen, ESC menu included) and never blocks
+   clicks/hover detection on what's underneath it. */
+.custom-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  background-image: var(--cursor-img-default);
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+  z-index: 999999;
+  transform: translate(-100px, -100px);
+  will-change: transform;
+}
+
+.custom-cursor.pointer {
+  background-image: var(--cursor-img-pointer);
+}
+
+/* Fullscreen Game Canvas Container */
+.game-viewport {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #101820;
+  overflow: hidden;
+  user-select: none;
+}
+
+#clubCanvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Floating Gear / Menu Button (Top-Right) */
+.floating-menu-btn {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  background: #283040;
+  border: 3px solid #d8a038;
+  color: #fff;
+  font-size: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+}
+
+.floating-menu-btn:hover {
+  background: #384860;
+  border-color: #f8d068;
+}
+
+/* Character ID Card Sidebar (Left Side HUD - Pokémon Trainer Card style) */
+.character-hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 320px;
+  background: #283040;
+  border: 3px solid #d8a038;
+  border-radius: 6px;
+  padding: 14px;
+  box-shadow: 4px 4px 0px #101820;
+  z-index: 90;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  animation: hudSlide 0.2s steps(4);
+}
+
+.character-hud.collapsed {
+  transform: translateX(-340px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud-toggle-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #182030;
+  border: 1px solid #d8a038;
+  color: #f8d068;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-family: var(--font-retro);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.hud-toggle-btn:hover {
+  background: #384860;
+}
+
+/* Compact Floating Pill when HUD is collapsed */
+.hud-expand-pill {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: #283040;
+  border: 3px solid #d8a038;
+  border-radius: 20px;
+  padding: 6px 14px;
+  box-shadow: 3px 3px 0px #101820;
+  z-index: 91;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-retro);
+  font-size: 9px;
+  color: #f8d068;
+  transition: transform 0.15s ease, background 0.15s ease;
+  user-select: none;
+}
+
+.hud-expand-pill:hover {
+  background: #384860;
+  transform: scale(1.04);
+}
+
+@keyframes hudSlide {
+  from { transform: translateX(-40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.hud-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid #384860;
+  padding-bottom: 8px;
+}
+
+.hud-photo {
+  width: 44px;
+  height: 44px;
+  background: #182030;
+  border: 2px solid #d8a038;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.hud-details h4 {
+  font-family: var(--font-retro);
+  font-size: 13px;
+  color: #f8d068;
+  margin-bottom: 4px;
+}
+
+.hud-details p {
+  font-size: 14px;
+  color: #a0a8b8;
+}
+
+.btn-char {
+  font-family: var(--font-retro);
+  background: #182030;
+  border-color: #384860;
+  color: #a0a8b8;
+  transition: none;
+}
+
+.btn-char:hover {
+  background: #384860;
+  color: #fff;
+}
+
+.btn-char.active {
+  background: #603810;
+  border-color: #d8a038;
+  color: #f8d068;
+  font-weight: bold;
+}
+
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #e0e8f0;
+}
+
+.hud-badge {
+  font-family: var(--font-retro);
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.hud-badge.regular {
+  background: #205838;
+  color: #a0e8b8;
+  border: 1px solid #489868;
+}
+
+.hud-badge.vip {
+  background: #603810;
+  color: #f8d068;
+  border: 1px solid #d8a038;
+}
+
+.hud-badge.attacker {
+  background: #581818;
+  color: #f88888;
+  border: 1px solid #d83838;
+}
+
+/* Bottom-of-screen Pokémon-style Dialogue Textbox (cream box, thick dark border) */
+.hud-action-bar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(#fdfdf6, #f1ede0);
+  border: 5px solid #182030;
+  box-shadow: 5px 5px 0px #0a0e17;
+  border-radius: 10px;
+  padding: 22px 26px 18px 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  z-index: 100;
+  width: calc(100% - 40px);
+  max-width: 1180px;
+  box-sizing: border-box;
+}
+
+.action-speaker {
+  position: absolute;
+  top: -16px;
+  left: 24px;
+  font-family: var(--font-retro);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #f8d068;
+  white-space: nowrap;
+  background: #182030;
+  padding: 5px 14px;
+  border: 2px solid #d8a038;
+  border-radius: 5px;
+  box-shadow: 2px 2px 0px #0a0e17;
+  z-index: 101;
+}
+
+.action-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 22px;
+  color: #182030;
+  line-height: 1.5;
+  font-weight: 600;
+  overflow-wrap: break-word;
+  word-break: normal;
+  padding: 2px 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  max-width: 460px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.action-buttons .btn {
+  font-size: 14px;
+  padding: 9px 16px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .hud-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding-top: 22px;
+    gap: 12px;
+  }
+  .action-buttons {
+    max-width: 100%;
+    justify-content: stretch;
+  }
+  .action-buttons .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* Password Strength Badges */
+.badge-strength {
+  font-family: var(--font-retro);
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.badge-strength.strong {
+  background: #064e3b;
+  color: #6ee7b7;
+  border: 1px solid #10b981;
+}
+
+.badge-strength.weak {
+  background: #7f1d1d;
+  color: #fca5a5;
+  border: 1px solid #ef4444;
+}
+
+/* Buttons (Classic Solid Retro Pokémon GBA Style) */
+.btn {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 4px;
+  border: 2px solid #485060;
+  background: #384860;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 2px 2px 0px #101820;
+}
+
+.btn:hover {
+  background: #485870;
+  border-color: #d8a038;
+}
+
+.btn-sm {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px #101820;
+}
+
+.btn-primary {
+  background: #2860a8;
+  border-color: #4888d8;
+}
+
+.btn-primary:hover {
+  background: #3878c8;
+}
+
+.btn-danger {
+  background: #a82828;
+  border-color: #d84848;
+}
+
+.btn-danger:hover {
+  background: #c83838;
+}
+
+.btn-success {
+  background: #288040;
+  border-color: #48b060;
+}
+
+.btn-success:hover {
+  background: #389850;
+}
+
+.btn-gold {
+  background: #a07020;
+  color: #fff;
+  border-color: #f0c050;
+}
+
+.btn-gold:hover {
+  background: #b88028;
+}
+
+/* Pause / Escape Menu Modal */
+.esc-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 32, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.esc-menu-overlay.active {
+  display: flex;
+}
+
+.esc-menu-card {
+  background: #283040;
+  border: 4px solid #d8a038;
+  border-radius: 8px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 6px 6px 0px #101820;
+}
+
+.esc-menu-title {
+  font-family: var(--font-retro);
+  font-size: 13px;
+  color: #f8d068;
+  text-align: center;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+.esc-menu-section {
+  margin-bottom: 16px;
+}
+
+.esc-menu-section label {
+  display: block;
+  font-family: var(--font-retro);
+  font-size: 8px;
+  color: #a0a8b8;
+  margin-bottom: 6px;
+}
+
+/* Modal Overlays (Cards & Quizzes) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 32, 0.88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  padding: 20px;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.card-container {
+  background: #283040;
+  border: 4px solid #d8a038;
+  border-radius: 8px;
+  box-shadow: 6px 6px 0px #101820;
+  width: 100%;
+  max-width: 600px;
+  padding: 24px;
+  animation: cardPop 0.15s steps(4);
+}
+
+@keyframes cardPop {
+  0% { transform: scale(0.96); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.card-badge {
+  font-family: var(--font-retro);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #f8d068;
+  background: #603810;
+  border: 1px solid #d8a038;
+  padding: 5px 8px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #fff;
+}
+
+/* Shared "attack/incident succeeded" variants - this exact badge+title combo
+   was previously copy-pasted as one-off inline styles at every attack-success
+   modal (phishing, pickpocket, server breach, incident report), each drifting
+   slightly. One definition now, reused everywhere. */
+.card-badge.danger {
+  background: var(--danger-bg);
+  color: var(--danger-text-soft);
+  border-color: var(--danger-text-strong);
+}
+
+.card-title.danger {
+  color: var(--danger-text);
+}
+
+.card-box {
+  background: #182030;
+  border: 2px solid #384860;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.card-box h4 {
+  font-family: var(--font-retro);
+  font-size: 9px;
+  color: #a0a8b8;
+  margin-bottom: 6px;
+}
+
+.card-box p {
+  font-size: 13px;
+  color: #e0e8f0;
+  line-height: 1.4;
+}
+
+.card-takeaway {
+  background: #183828;
+  border: 2px solid #38a850;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a0f0b8;
+  margin-bottom: 18px;
+}
+
+/* Split screen comparison */
+.split-screen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.split-box {
+  background: #182030;
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+  border: 2px solid;
+}
+
+.split-box.authn { border-color: var(--info-text); }
+.split-box.authn h5 { color: var(--info-text); }
+.split-box.authz { border-color: var(--gold-text); }
+.split-box.authz h5 { color: var(--gold-text); }
+.split-box h5 { font-family: var(--font-retro); font-size: 8px; color: var(--text-muted); margin-bottom: 6px; }
+.split-box .char-highlight { font-size: 18px; font-weight: 800; }
+
+.paper-receipt {
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: var(--font-mono);
+  padding: 20px;
+  border-radius: 4px;
+  width: 320px;
+  margin: 10px auto;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.paper-receipt h3 {
+  text-align: center;
+  font-size: 14px;
+  border-bottom: 1px dashed #64748b;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+/* ==========================================================================
+   POKÉMON BATTLE SCREEN OVERLAY (GBA / DS Trainer Encounter Screen)
+   ========================================================================== */
+.battle-overlay {
+  position: fixed;
+  inset: 0;
+  background: #182030;
+  display: none;
+  flex-direction: column;
+  z-index: 180;
+  user-select: none;
+}
+
+.battle-overlay.active {
+  display: flex;
+  animation: battleFadeIn 0.3s ease-in-out;
+}
+
+@keyframes battleFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.battle-arena-canvas-wrap {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 65vh;
+  background: #283848;
+  overflow: hidden;
+}
+
+#battleCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Battle HUD: Opponent & Player Status Plates */
+.battle-plate {
+  position: absolute;
+  background: #e8e8e8;
+  border: 4px solid #384860;
+  border-radius: 6px;
+  padding: 8px 14px;
+  box-shadow: 4px 4px 0px #101820;
+  color: #101820;
+  min-width: 240px;
+}
+
+.battle-plate.opponent-plate {
+  top: 30px;
+  left: 40px;
+}
+
+.battle-plate.player-plate {
+  bottom: 40px;
+  right: 50px;
+}
+
+.battle-plate-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.battle-plate-name {
+  font-family: var(--font-retro);
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.battle-plate-role {
+  font-family: var(--font-retro);
+  font-size: 8px;
+  color: #586878;
+  letter-spacing: 0.5px;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+}
+
+.battle-plate-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-retro);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.battle-hp-bar {
+  flex: 1;
+  height: 8px;
+  background: #303840;
+  border: 1px solid #101820;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.battle-hp-fill {
+  height: 100%;
+  background: #38b058;
+  width: 100%;
+}
+
+.battle-plate-badge {
+  display: inline-block;
+  font-family: var(--font-retro);
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: #d8a038;
+  color: #fff;
+  margin-top: 4px;
+}
+
+/* Battle Bottom Control Panel (Classic Pokémon Attack / Dialogue Box) */
+.battle-control-deck {
+  height: 50vh;
+  min-height: 380px;
+  background: #202838;
+  border-top: 6px solid #d8a038;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  padding: 16px 24px;
+  gap: 20px;
+  box-sizing: border-box;
+}
+
+.battle-dialogue-box {
+  background: #283040;
+  border: 3px solid #384860;
+  border-radius: 6px;
+  padding: 22px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: inset 2px 2px 0px #182030;
+  position: relative;
+}
+
+.battle-dialogue-speaker {
+  font-family: var(--font-retro);
+  font-size: 16px;
+  color: #f8d068;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+/* "Typewrite screen" text - blown up well past its original 16px so the
+   revealing dialogue is unmistakably readable mid-encounter. */
+.battle-dialogue-text {
+  font-family: var(--font-sans);
+  font-size: 40px;
+  color: #f8f8f8;
+  line-height: 1.4;
+  font-weight: 600;
+  min-height: 112px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-height: 256px;
+  overflow-y: auto;
+}
+
+/* Classic Pokémon blinking triangle arrow prompt */
+.battle-dialogue-prompt {
+  display: inline-block;
+  font-family: var(--font-retro);
+  font-size: 16px;
+  color: #f8d068;
+  margin-left: 6px;
+  animation: promptBlink 0.6s infinite steps(2);
+}
+
+@keyframes promptBlink {
+  0%, 100% { opacity: 1; transform: translateY(0); }
+  50% { opacity: 0; transform: translateY(2px); }
+}
+
+/* Security PC Terminal Modal Styles */
+.terminal-card {
+  background: #0b1320;
+  border: 3px solid #38bdf8;
+  border-radius: 8px;
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.25), 6px 6px 0px #020617;
+  max-width: 680px;
+  width: 95vw;
+}
+
+.terminal-header {
+  background: #0284c7;
+  color: #f0f9ff;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-retro);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.terminal-tabs {
+  display: flex;
+  background: #082f49;
+  border-bottom: 2px solid #0369a1;
+}
+
+.terminal-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-right: 1px solid #0369a1;
+  color: #7dd3fc;
+  padding: 10px;
+  font-family: var(--font-retro);
+  font-size: 9px;
+  text-align: center;
+  transition: background 0.15s ease;
+}
+
+.terminal-tab:hover {
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.terminal-tab.active {
+  background: #0c4a6e;
+  color: #f8fafc;
+  font-weight: bold;
+}
+
+.terminal-body {
+  padding: 18px;
+  color: #cbd5e1;
+}
+
+.terminal-screen {
+  background: #030712;
+  border: 2px solid var(--bg-panel);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.session-badge-active {
+  background: #14532d;
+  color: #4ade80;
+  border: 1px solid #22c55e;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.battle-menu-box {
+  background: #283040;
+  border: 3px solid #d8a038;
+  border-radius: 6px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: stretch;
+  overflow-y: auto;
+}
+
+.btn-battle-cmd {
+  font-family: var(--font-retro);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 14px 12px;
+  min-height: 56px;
+  background: #384860;
+  border: 2px solid #485870;
+  color: #fff;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-shadow: 2px 2px 0px #101820;
+  transition: none;
+}
+
+.btn-battle-cmd-badge {
+  font-size: 10px;
+  color: #f8d068;
+  letter-spacing: 0.5px;
+}
+
+.btn-battle-cmd:hover {
+  background: #485870;
+  border-color: #f8d068;
+  color: #f8d068;
+}
+
+.btn-battle-cmd.primary {
+  background: #2860a8;
+  border-color: #4888d8;
+}
+
+.btn-battle-cmd.primary:hover {
+  background: #3878c8;
+}
+
+.btn-battle-cmd.danger {
+  background: #a82828;
+  border-color: #d84848;
+}
+
+.btn-battle-cmd.success {
+  background: #288040;
+  border-color: #48b060;
+}
+
+/* Black Screen Fade Transition (Pokémon / Classic RPG Scene Transition) */
+.screen-fade-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 200;
+  transition: opacity 0.35s ease-in-out;
+}
+
+.screen-fade-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
